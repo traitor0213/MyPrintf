@@ -1,0 +1,1 @@
+gcc example.cpp -o example.exe
