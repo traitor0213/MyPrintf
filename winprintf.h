@@ -1,57 +1,38 @@
+#include <stdio.h>
 #include <windows.h>
+
 
 int MyPrintf(const void *args, ...)
 {
     HANDLE WriteHandle = GetStdHandle(STD_OUTPUT_HANDLE);
 
-#ifdef UNICODE
-    int FormatStringLength = lstrlenW((const WCHAR *)args) * 2 + 1;
-
-#else
-    int FormatStringLength = lstrlenA((const CHAR *)args);
-
-#endif
+    typedef char STR;
+    int FormatStringLength = lstrlenA((STR *)args);
 
     int WriteLength = 0;
     int NextArgument = 1;
 
     for (int x = 0; x != FormatStringLength; x++)
-    {
-        if(((const char *)*(&args))[x] == 0)
+    {       
+        if (((STR *)*(&args))[x] == (STR)'%')
         {
-            //end of string
-            break;
-        }
+            unsigned int ch = ((STR*)*(&args))[x + 1]; 
 
-        if (((const char *)*(&args))[x] == '%')
-        {
-            if (((const char *)*(&args))[x + 1] == 's')
+            if (ch == (STR)'s')
             {
-
-#ifdef UNICODE
-                WriteLength = lstrlenW((const WCHAR*)*(&args + NextArgument)) * 2 + 1;
-#else
-                WriteLength = lstrlenA((const char *)*(&args + NextArgument));
-#endif
-
-                WriteFile(WriteHandle, (const char *)*(&args + NextArgument), WriteLength, NULL, NULL);
+                WriteLength = lstrlenA((STR *)*(&args + NextArgument));
+                WriteFile(WriteHandle, (STR *)*(&args + NextArgument), WriteLength, NULL, NULL);
             }
 
-            if (((const char *)*(&args))[x + 1] == 'c')
+            if (ch == (STR)'c')
             {
-
-#ifdef UNICODE
-                WriteLength = sizeof(WCHAR);
-#else
                 WriteLength = sizeof(CHAR);
-#endif
-
-                WriteFile(WriteHandle, (const char *)*(&args + NextArgument), WriteLength, NULL, NULL);
+                WriteFile(WriteHandle, (STR *)*(&args + NextArgument), WriteLength, NULL, NULL);
             }
 
-            if (((const char *)*(&args))[x + 1] == 'x')
+            if (ch == (STR)'x')
             {
-                char HexString[8 + 1];
+                STR HexString[8 + 1];
                 HexString[8] = 0;
 
                 int HexIndex = 0;
@@ -61,17 +42,17 @@ int MyPrintf(const void *args, ...)
                 for (int x = sizeof(hex) - 1; x != -1; --x)
                 {
                     int FirstByte = ((const unsigned char *)&hex)[x];
-                    FirstByte >>= sizeof(int);
+                    FirstByte >>= 4;
 
                     int SecondByte = ((const unsigned char *)&hex)[x];
-                    SecondByte -= (FirstByte << sizeof(int));
+                    SecondByte -= (FirstByte << 4);
 
-                    if(FirstByte >= 0xA)
+                    if (FirstByte >= 0xA)
                     {
                         FirstByte += 7;
                     }
 
-                    if(SecondByte >= 0xA)
+                    if (SecondByte >= 0xA)
                     {
                         SecondByte += 7;
                     }
@@ -79,38 +60,33 @@ int MyPrintf(const void *args, ...)
                     FirstByte += 0x30;
                     SecondByte += 0x30;
 
-                    HexString[HexIndex++] = FirstByte;
-                    HexString[HexIndex++] = SecondByte;
+                    HexString[HexIndex++] = (STR)FirstByte;
+                    HexString[HexIndex++] = (STR)SecondByte;
                 }
 
-                for(int x = 0; x != sizeof(HexString) - 1; x++)
+                for (int x = 0; x != sizeof(HexString) - 1; x++)
                 {
-                    if(HexString[x] != '0')
+                    if (HexString[x] != (STR)'0')
                     {
                         break;
                     }
-                    else 
+                    else
                     {
-                        HexString[x] = '-';
+                        HexString[x] = (STR)'-';
                     }
                 }
-                
-#ifdef UNICODE
-                WriteLength = lstrlenW( (const WCHAR*)HexString) * 2 + 1;
-#else
-                WriteLength = lstrlenA(HexString);
-#endif
 
-                for(int x = 0; x != sizeof(HexString) - 1; x++)
+                WriteLength = lstrlenA((STR *)HexString);
+                for (int x = 0; x != sizeof(HexString) - 1; x++)
                 {
-                    if(HexString[x] != '-')
+                    if (HexString[x] != (STR)'-')
                     {
                         WriteFile(WriteHandle, &HexString[x], sizeof(HexString[x]), NULL, NULL);
                     }
                 }
             }
 
-            if (((const char *)*(&args))[x + 1] == 'p')
+            if (ch == (STR)'p')
             {
                 char HexString[2 + 1];
                 HexString[2] = 0;
@@ -119,20 +95,18 @@ int MyPrintf(const void *args, ...)
 
                 for (int x = sizeof(hex) - 1; x != -1; --x)
                 {
-                    int FirstByte = ((const unsigned char *)&hex)[x];
-                    FirstByte >>= sizeof(int);
+                    int FirstByte = ((STR *)&hex)[x];
+                    FirstByte >>= 4;
 
-                    int SecondByte = ((const unsigned char *)&hex)[x];
-                    SecondByte -= (FirstByte << sizeof(int));
+                    int SecondByte = ((STR *)&hex)[x];
+                    SecondByte -= (FirstByte << 4);
 
-                    //printf("\ndata=>%x, %x\n", FirstByte, SecondByte);
-
-                    if(FirstByte >= 0xA)
+                    if (FirstByte >= 0xA)
                     {
                         FirstByte += 7;
                     }
 
-                    if(SecondByte >= 0xA)
+                    if (SecondByte >= 0xA)
                     {
                         SecondByte += 7;
                     }
@@ -147,12 +121,14 @@ int MyPrintf(const void *args, ...)
                 }
             }
 
+            //add address
+
             NextArgument++;
             x++;
         }
         else 
         {
-            WriteFile(WriteHandle, &((const char *)*(&args))[x], sizeof(char), NULL, NULL);
+            WriteFile(WriteHandle, &((STR *)*(&args))[x], sizeof(STR), NULL, NULL);
         }
     }
 
